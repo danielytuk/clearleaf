@@ -25,7 +25,7 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/Mojang/bedrock-samples.git _samples
           if [ -f _samples/version.json ]; then
-            VERSION=$(python3 -c "import json; print(json.load(open('_samples/version.json'))['latest.version'])")
+            VERSION=$(python3 -c "import json; print(json.load(open('_samples/version.json'))['latest']['version'])")
           else
             echo "Warning: no version.json found, using 1.21.0"
             VERSION="1.21.0"
@@ -85,13 +85,13 @@ jobs:
       - name: Generate textures_list.json
         shell: pwsh
         run: |
-          $rp = "_samples/resource_pack"
-          $exts = @("*.png", "*.tga", "*.jpg", "*.jpeg")
-          $files = $exts | ForEach-Object { Get-ChildItem -Path "$rp/textures" -Recurse -Filter $_ }
+          $rpFull = Convert-Path "_samples/resource_pack"
+          $files = Get-ChildItem -Path "_samples/resource_pack/textures" -Recurse -File `
+            | Where-Object { $_.Extension -match '\.(png|tga|jpg|jpeg)$' }
           $list = $files | ForEach-Object {
-            $_.FullName.Substring($rp.Length + 1).Replace('\', '/') -replace '\.[^.]+$', ''
+            $_.FullName.Substring($rpFull.Length + 1) -replace '\.[^.]+$', ''
           } | Sort-Object
-          Set-Content -Path "$rp/textures_list.json" -Value ($list | ConvertTo-Json) -Encoding Ascii
+          Set-Content -Path "_samples/resource_pack/textures_list.json" -Value ($list | ConvertTo-Json) -Encoding Ascii
 
       - name: Package mcaddon
         run: |

@@ -19,7 +19,7 @@ def make_manifest(pack_type, version_str, pack_uuid, module_uuid, is_rp):
             "description": "Bedrock performance optimization pack - entity culling, particle reduction, rendering optimization & despawn tuning. Maintains vanilla gameplay while reducing lag.",
             "uuid": pack_uuid,
             "version": [major, minor, patch],
-            "min_engine_version": [major, minor, patch],
+            "min_engine_version": [1, 20, 0],
         },
         "modules": [
             {
