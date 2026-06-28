@@ -25,7 +25,12 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/Mojang/bedrock-samples.git _samples
           if [ -f _samples/version.json ]; then
-            VERSION=$(python3 -c "import json; print(json.load(open('_samples/version.json'))['latest']['version'])")
+            VERSION=$(jq -r '.latest.version' _samples/version.json)
+            if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
+              echo "Error: could not parse version from version.json"
+              cat _samples/version.json
+              exit 1
+            fi
           else
             echo "Warning: no version.json found, using 1.21.0"
             VERSION="1.21.0"
