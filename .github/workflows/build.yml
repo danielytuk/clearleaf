@@ -1,0 +1,131 @@
+name: Build Clearleaf Addon
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PYTHON_SCRIPT_DIR: src/scripts
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Fetch Minecraft latest samples
+        run: |
+          git clone --depth 1 https://github.com/Mojang/bedrock-samples.git _samples
+          if [ -f _samples/version.json ]; then
+            VERSION=$(python3 -c "import json; print(json.load(open('_samples/version.json'))['latest.version'])")
+          else
+            echo "Warning: no version.json found, using 1.21.0"
+            VERSION="1.21.0"
+          fi
+          echo "version=$VERSION" >> $GITHUB_ENV
+
+      - name: Generate manifests
+        run: |
+          python $PYTHON_SCRIPT_DIR/generate_manifest.py --version ${{ env.version }} --rp --bp --output _samples
+
+      - name: Optimize entities (LOD + animation culling)
+        run: |
+          python $PYTHON_SCRIPT_DIR/optimize_entities.py --rp _samples
+
+      - name: Optimize render controllers (part_visibility culling)
+        run: |
+          python $PYTHON_SCRIPT_DIR/optimize_render_controllers.py _samples
+
+      - name: Optimize particles (rate halving)
+        run: |
+          python $PYTHON_SCRIPT_DIR/optimize_particles.py _samples
+
+      - name: Apply RP config files
+        shell: pwsh
+        run: |
+          $rp = "_samples/resource_pack"
+          $cfg = "src/configs"
+          Copy-Item "$cfg/water.json" "$rp/water/water.json" -Force
+          Copy-Item "$cfg/atmospherics.json" "$rp/atmospherics/atmospherics.json" -Force
+          Copy-Item "$cfg/color_grading.json" "$rp/color_grading/global.json" -Force
+          Copy-Item "$cfg/pbr.json" "$rp/pbr/global.json" -Force
+          Copy-Item "$cfg/shadows.json" "$rp/renderer/shadows.json" -Force
+          Copy-Item "$cfg/point_lights.json" "$rp/point_lights/global.json" -Force
+          Copy-Item "$cfg/block_culling.json" "$rp/block_culling/custom_rules.json" -Force
+          Copy-Item "$cfg/terrain.material" "$rp/materials/terrain.material" -Force
+          Copy-Item "$cfg/flipbook_textures.json" "$rp/textures/flipbook_textures.json" -Force
+          Copy-Item "$cfg/item_texture.json" "$rp/textures/item_texture.json" -Force
+          Copy-Item "$cfg/flame_atlas.texture_set.json" "$rp/textures/flame_atlas.texture_set.json" -Force
+          Copy-Item "$cfg/biomes_client.json" "$rp/biomes_client.json" -Force
+          Copy-Item "$cfg/fogs/*.json" "$rp/fogs/" -Force
+
+      - name: Apply RP override files
+        shell: pwsh
+        run: |
+          $ov = "src/overrides"
+          Copy-Item "$ov/RP/entity/*.entity.json" "_samples/resource_pack/entity/" -Force
+
+      - name: Generate BP entity overrides
+        run: |
+          python $PYTHON_SCRIPT_DIR/optimize_entities.py --bp _samples
+
+      - name: Copy BP spawn rules
+        shell: pwsh
+        run: |
+          Copy-Item "src/overrides/BP/spawn_rules/*.json" "_samples/behavior_pack/spawn_rules/" -Force
+
+      - name: Generate textures_list.json
+        shell: pwsh
+        run: |
+          $rp = "_samples/resource_pack"
+          $exts = @("*.png", "*.tga", "*.jpg", "*.jpeg")
+          $files = $exts | ForEach-Object { Get-ChildItem -Path "$rp/textures" -Recurse -Filter $_ }
+          $list = $files | ForEach-Object {
+            $_.FullName.Substring($rp.Length + 1).Replace('\', '/') -replace '\.[^.]+$', ''
+          } | Sort-Object
+          Set-Content -Path "$rp/textures_list.json" -Value ($list | ConvertTo-Json) -Encoding Ascii
+
+      - name: Package mcaddon
+        run: |
+          cd _samples
+          zip -r ../clearleaf-v${{ env.version }}.mcaddon resource_pack/ behavior_pack/
+
+      - name: Generate release notes
+        run: |
+          cat > release_notes.md << EOF
+          ## Clearleaf v${{ env.version }}
+
+          Automatic build from [Mojang/bedrock-samples](https://github.com/Mojang/bedrock-samples) v${{ env.version }}.
+
+          ### Optimizations included:
+          - Entity LOD scaling (scale dissolves at 48+ blocks)
+          - Animation culling (full animations within 24 blocks, partial 24-48, none 48+)
+          - Part visibility culling (entities invisible past 48 blocks)
+          - Particle rate halving (all particle emitters reduced by 50%)
+          - Rendering optimizations (point filtering, FP16, shadows 512, point lights 4/radius 8)
+          - Fog distance reduction (earlier fog start, tighter end)
+          - Block culling (grass sides, water/lava bottoms)
+          - Texture atlas config (mipmap 3, padding 8)
+          - Flipbook slowdown (8 ticks water/lava, 4 ticks fire/portal)
+          - Mob despawn tuning (48/64 blocks, 30-120s inactivity)
+          - Spawn density reduction (8 overworld, 12 nether, 8 end)
+          - Disabled PBR, color grading, water caustics
+          - Custom culling rules for grass, double plants, water, lava
+          EOF
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.version }}
+          name: "Clearleaf v${{ env.version }}"
+          body_path: release_notes.md
+          files: clearleaf-v${{ env.version }}.mcaddon
+          make_latest: true

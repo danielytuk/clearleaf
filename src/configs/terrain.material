@@ -1,0 +1,18 @@
+// Terrain material optimized for performance
+// Point filtering (no bilinear interpolation) + FP16 precision
+terrain.material:
+{
+	"samplers":[
+		{"name":"textureSampler","minFilter":"Point","magFilter":"Point","mipFilter":"Point"}
+	],
+	"states":["Blending","DisableDepthWrite"],
+	"vertexFields":[
+		{"field":"POSITION","size":3},
+		{"field":"NORMAL","size":3},
+		{"field":"TEXCOORD_0","size":2}
+	],
+	"variants":[{
+		"skinning":"none",
+		"defines":["USE_FP16_UNIFORMS"]
+	}]
+}

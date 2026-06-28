@@ -1,0 +1,1 @@
+{"format_version":"1.16.100","minecraft:water_settings":{"color":{"water_color":"#44AFF5"},"surface_smoothness":0.5,"fog_distance":8,"fog_color":[60,130,200],"wave_speed":0.5,"wave_amplitude":0.5,"wave_frequency":0.5,"wave_scale":0.5,"foam_color":"#FFFFFF","foam_density":0.5,"caustics":{"enabled":false,"level":0.5,"distance":8,"color":[255,255,255]}}}

@@ -1,0 +1,1 @@
+{"format_version":"1.16.100","minecraft:atmospherics_settings":{"sky":{"fog":{"sampling":{"count":2,"speed":0.5}},"rain":{"speed":0.5,"color":[255,255,255]}},"sun":{"color":[255,255,255],"intensity":1.0},"moon":{"color":[255,255,255],"intensity":1.0},"stars":{"intensity":0.5,"speed":0.5}}}
