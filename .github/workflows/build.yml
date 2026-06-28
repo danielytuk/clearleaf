@@ -58,6 +58,9 @@ jobs:
         run: |
           $rp = "_samples/resource_pack"
           $cfg = "src/configs"
+          $dirs = @("water", "atmospherics", "color_grading", "pbr", "renderer",
+                     "point_lights", "block_culling", "materials", "fogs")
+          foreach ($d in $dirs) { New-Item -ItemType Directory -Path "$rp/$d" -Force | Out-Null }
           Copy-Item "$cfg/water.json" "$rp/water/water.json" -Force
           Copy-Item "$cfg/atmospherics.json" "$rp/atmospherics/atmospherics.json" -Force
           Copy-Item "$cfg/color_grading.json" "$rp/color_grading/global.json" -Force
